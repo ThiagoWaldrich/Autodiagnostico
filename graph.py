@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import json
 import csv
 from collections import defaultdict
+import numpy as np
 
 class ENEMAnalyzer:
     def __init__(self, root):
@@ -14,7 +15,7 @@ class ENEMAnalyzer:
         self.root.geometry("1000x700")
         
         self.questions = []
-        self.subjects = ["Física", "Matemática", "Biologia", "Químic", 
+        self.subjects = ["Física", "Matemática", "Biologia", "Química", 
                         "História", "Geografia", "Filosofia", "Sociologia"]
         
         self.load_data()
@@ -60,7 +61,7 @@ class ENEMAnalyzer:
         self.description = tk.Text(frame, height=5, width=40)
         self.description.grid(row=3, column=1, padx=5, pady=5, sticky='ew')
         
-        ttk.Button(frame, text="Salvar", command=self.save_question).grid(row=4, column=1, pady=10, sticky='e')
+        ttk.Button(frame, text="Adicionar", command=self.save_question).grid(row=4, column=1, pady=10, sticky='e')
         
         frame.columnconfigure(1, weight=1)
     
@@ -77,13 +78,14 @@ class ENEMAnalyzer:
         self.canvas_pie.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Gráfico de Barras
-        bar_frame = ttk.LabelFrame(frame, text="Tópicos por Matéria")
-        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        bar_frame = ttk.LabelFrame(frame, text="Tópicos por Matéria", labelanchor="n")
+        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(20,5))
         
         
-        self.fig_bar = plt.Figure(figsize=(6,4))
+        self.fig_bar = plt.Figure(figsize=(25,10))
         self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, bar_frame)
         self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
         
         self.update_charts()
     
@@ -139,7 +141,6 @@ class ENEMAnalyzer:
         self.description.delete("1.0", tk.END)
     
     def update_charts(self):
-        # Gráfico de Pizza
         self.fig_pie.clear()
         counts = defaultdict(int)
         for q in self.questions:
@@ -151,29 +152,59 @@ class ENEMAnalyzer:
         ax.set_title("Distribuição por Matéria")
         self.canvas_pie.draw()
         
-        # Gráfico de Barras
         self.fig_bar.clear()
         subject_topics = defaultdict(lambda: defaultdict(int))
         for q in self.questions:
             subject = q['subject']
-            topics = q['topic']
-            subject_topics[subject][topics] += 1
+            topic = q['topic']
+            subject_topics[subject][topic] += 1
 
         num_subjects = len(subject_topics)
+        cols = min(3, num_subjects)  # Máximo de 3 colunas por linha
+        rows = (num_subjects + cols - 1) // cols  # Calcula número de linhas necessário
 
-        axes = self.fig_bar.subplots(num_subjects, 1)
+        axes = self.fig_bar.subplots(rows, cols)
+        self.fig_bar.set_size_inches(6*cols, 4*rows)  # Tamanho dinâmico
+
         if num_subjects == 1:
-            axes = [axes]
+            axes = np.array([[axes]])
+        elif rows == 1:
+            axes = np.array([axes])
 
-        for ax, (subject, topics) in zip(axes, subject_topics.items()):
-            ax.bar(topics.keys(), topics.values())
-            ax.set_title(f"Tópicos de {subject}")
-            ax.set_ylabel("Frequência")
-            ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
-            ax.tick_params(axis='x', rotation=45)
+        for i, (subject, topics) in enumerate(subject_topics.items()):
+            row = i // cols
+            col = i % cols
+            ax = axes[row, col]
+    
+            sorted_topics = sorted(topics.items(), key=lambda x: x[1], reverse=True)
+            topic_names = [t[0] for t in sorted_topics]
+            topic_counts = [t[1] for t in sorted_topics]
+    
+            bars = ax.bar(topic_names, topic_counts, width=0.4, color='#4a6fa5')
+    
+            ax.set_title(f"{subject}")
+            ax.set_ylabel("Quantidade")
+            ax.grid(axis='y', linestyle='--', alpha=0.2)
+            ax.set_xticklabels(topic_names, ha='right')
+    
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+               f'{int(height)}',
+               ha='center', va='bottom')
+
+        if num_subjects < rows * cols:
+            for j in range(num_subjects, rows * cols):
+                row = j // cols
+                col = j % cols
+            axes[row, col].axis('off')
 
         self.fig_bar.tight_layout()
+        self.fig_bar.subplots_adjust(top=0.9, hspace=0.2, wspace=0.3)
         self.canvas_bar.draw()
+        self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.canvas_bar.flush_events()
+        self.canvas_bar.get_tk_widget().update_idletasks()
 
     
     def update_data_view(self):

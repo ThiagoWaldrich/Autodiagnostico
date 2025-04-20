@@ -28,5 +28,23 @@
     "topic": "Din\u00e2mica",
     "subtopic": "Leis de Newton",
     "description": "Uma descri\u00e7\u00e3o qualquer"
+  },
+  {
+    "subject": "Hist\u00f3ria",
+    "topic": "Hist\u00f3ria do Brasil",
+    "subtopic": "Brasil Col\u00f4nia",
+    "description": "Erro nas alternativas"
+  },
+  {
+    "subject": "Sociologia",
+    "topic": "Max Weber",
+    "subtopic": "Positivismo",
+    "description": "Uma quest\u00e3o qualquer"
+  },
+  {
+    "subject": "Geografia",
+    "topic": "Monstra",
+    "subtopic": "Tecn",
+    "description": "uma"
   }
 ]
