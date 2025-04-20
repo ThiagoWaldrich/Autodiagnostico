@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from matplotlib import ticker
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import json
@@ -77,6 +78,7 @@ class ENEMAnalyzer:
         
         # Gráfico de Barras
         bar_frame = ttk.LabelFrame(frame, text="Tópicos por Matéria")
+        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         
         self.fig_bar = plt.Figure(figsize=(6,4))
@@ -151,16 +153,28 @@ class ENEMAnalyzer:
         
         # Gráfico de Barras
         self.fig_bar.clear()
-        topics = defaultdict(int)
+        subject_topics = defaultdict(lambda: defaultdict(int))
         for q in self.questions:
-            key = f"{q['subject']} - {q['topic']}"
-            topics[key] += 1
-        
-        ax = self.fig_bar.add_subplot(111)
-        if topics:
-            ax.barh(list(topics.keys()), list(topics.values()))
-        ax.set_title("Tópicos Mais Frequentes")
+            subject = q['subject']
+            topics = q['topic']
+            subject_topics[subject][topics] += 1
+
+        num_subjects = len(subject_topics)
+
+        axes = self.fig_bar.subplots(num_subjects, 1)
+        if num_subjects == 1:
+            axes = [axes]
+
+        for ax, (subject, topics) in zip(axes, subject_topics.items()):
+            ax.bar(topics.keys(), topics.values())
+            ax.set_title(f"Tópicos de {subject}")
+            ax.set_ylabel("Frequência")
+            ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+            ax.tick_params(axis='x', rotation=45)
+
+        self.fig_bar.tight_layout()
         self.canvas_bar.draw()
+
     
     def update_data_view(self):
         for item in self.tree.get_children():
@@ -168,6 +182,7 @@ class ENEMAnalyzer:
             
         for q in self.questions:
             self.tree.insert("", tk.END, values=(
+                q["subject"],
                 q["topic"],
                 q["subtopic"],
                 q["description"][:50] + "..." if len(q["description"]) > 50 else q["description"]
