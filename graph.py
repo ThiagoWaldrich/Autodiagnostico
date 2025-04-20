@@ -1,0 +1,226 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import json
+import csv
+from collections import defaultdict
+
+class ENEMAnalyzer:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Analisador ENEM")
+        self.root.geometry("1000x700")
+        
+        self.questions = []
+        self.subjects = ["Física", "Matemática", "Biologia", "Química", 
+                        "História", "Geografia", "Filosofia", "Sociologia"]
+        
+        self.load_data()
+        self.create_widgets()
+    
+    def load_data(self):
+        try:
+            with open('enem_data.json', 'r') as f:
+                self.questions = json.load(f)
+        except:
+            self.questions = []
+    
+    def save_data(self):
+        with open('enem_data.json', 'w') as f:
+            json.dump(self.questions, f, indent=2)
+    
+    def create_widgets(self):
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+        
+        self.create_register_tab()
+        self.create_charts_tab()
+        self.create_data_tab()
+    
+    def create_register_tab(self):
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Cadastrar")
+        
+        # Formulário
+        ttk.Label(frame, text="Matéria:").grid(row=0, column=0, padx=5, pady=5, sticky='w')
+        self.subject = ttk.Combobox(frame, values=self.subjects, state="readonly")
+        self.subject.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+        
+        ttk.Label(frame, text="Tópico:").grid(row=1, column=0, padx=5, pady=5, sticky='w')
+        self.topic = ttk.Entry(frame)
+        self.topic.grid(row=1, column=1, padx=5, pady=5, sticky='ew')
+        
+        ttk.Label(frame, text="Subtópico:").grid(row=2, column=0, padx=5, pady=5, sticky='w')
+        self.subtopic = ttk.Entry(frame)
+        self.subtopic.grid(row=2, column=1, padx=5, pady=5, sticky='ew')
+        
+        ttk.Label(frame, text="Descrição:").grid(row=3, column=0, padx=5, pady=5, sticky='nw')
+        self.description = tk.Text(frame, height=5, width=40)
+        self.description.grid(row=3, column=1, padx=5, pady=5, sticky='ew')
+        
+        ttk.Button(frame, text="Salvar", command=self.save_question).grid(row=4, column=1, pady=10, sticky='e')
+        
+        frame.columnconfigure(1, weight=1)
+    
+    def create_charts_tab(self):
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Gráficos")
+        
+        # Gráfico de Pizza
+        pie_frame = ttk.LabelFrame(frame, text="Distribuição por Matéria")
+        pie_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        self.fig_pie = plt.Figure(figsize=(6,2))
+        self.canvas_pie = FigureCanvasTkAgg(self.fig_pie, pie_frame)
+        self.canvas_pie.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
+        # Gráfico de Barras
+        bar_frame = ttk.LabelFrame(frame, text="Tópicos por Matéria")
+        
+        
+        self.fig_bar = plt.Figure(figsize=(6,4))
+        self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, bar_frame)
+        self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
+        self.update_charts()
+    
+    def create_data_tab(self):
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Planilha")
+        
+        # Treeview para exibir dados
+        self.tree = ttk.Treeview(frame, columns=("Matéria", "Tópico", "Subtópico", "Descrição"), show="headings")
+        self.tree.heading("Matéria", text="Matéria")
+        self.tree.heading("Tópico", text="Tópico")
+        self.tree.heading("Subtópico", text="Subtópico")
+        self.tree.heading("Descrição", text="Descrição")
+        
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.tree.pack(side="left", fill=tk.BOTH, expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Botão para importar CSV
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Button(btn_frame, text="Importar CSV", command=self.import_csv).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Exportar CSV", command=self.export_csv).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Atualizar", command=self.update_data_view).pack(side="right", padx=5)
+        
+        self.update_data_view()
+    
+    def save_question(self):
+        if not self.subject.get() or not self.topic.get():
+            messagebox.showerror("Erro", "Preencha pelo menos Matéria e Tópico!")
+            return
+            
+        self.questions.append({
+            "subject": self.subject.get(),
+            "topic": self.topic.get(),
+            "subtopic": self.subtopic.get(),
+            "description": self.description.get("1.0", tk.END).strip()
+        })
+        
+        self.save_data()
+        self.clear_form()
+        self.update_charts()
+        self.update_data_view()
+        messagebox.showinfo("Sucesso", "Questão salva com sucesso!")
+    
+    def clear_form(self):
+        self.subject.set('')
+        self.topic.delete(0, tk.END)
+        self.subtopic.delete(0, tk.END)
+        self.description.delete("1.0", tk.END)
+    
+    def update_charts(self):
+        # Gráfico de Pizza
+        self.fig_pie.clear()
+        counts = defaultdict(int)
+        for q in self.questions:
+            counts[q["subject"]] += 1
+        
+        ax = self.fig_pie.add_subplot(111)
+        if counts:
+            ax.pie(counts.values(), labels=counts.keys(), autopct='%1.1f%%')
+        ax.set_title("Distribuição por Matéria")
+        self.canvas_pie.draw()
+        
+        # Gráfico de Barras
+        self.fig_bar.clear()
+        topics = defaultdict(int)
+        for q in self.questions:
+            key = f"{q['subject']} - {q['topic']}"
+            topics[key] += 1
+        
+        ax = self.fig_bar.add_subplot(111)
+        if topics:
+            ax.barh(list(topics.keys()), list(topics.values()))
+        ax.set_title("Tópicos Mais Frequentes")
+        self.canvas_bar.draw()
+    
+    def update_data_view(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+            
+        for q in self.questions:
+            self.tree.insert("", tk.END, values=(
+                q["topic"],
+                q["subtopic"],
+                q["description"][:50] + "..." if len(q["description"]) > 50 else q["description"]
+            ))
+    
+    def import_csv(self):
+        filepath = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
+        if not filepath:
+            return
+            
+        try:
+            with open(filepath, newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    self.questions.append({
+                        "subject": row.get("Matéria", ""),
+                        "topic": row.get("Tópico", ""),
+                        "subtopic": row.get("Subtópico", ""),
+                        "description": row.get("Descrição", "")
+                    })
+            
+            self.save_data()
+            self.update_charts()
+            self.update_data_view()
+            messagebox.showinfo("Sucesso", "Dados importados com sucesso!")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao importar CSV:\n{str(e)}")
+    
+    def export_csv(self):
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv")]
+        )
+        if not filepath:
+            return
+            
+        try:
+            with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["Matéria", "Tópico", "Subtópico", "Descrição"])
+                for q in self.questions:
+                    writer.writerow([
+                        q["subject"],
+                        q["topic"],
+                        q["subtopic"],
+                        q["description"]
+                    ])
+            
+            messagebox.showinfo("Sucesso", f"Dados exportados para:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao exportar CSV:\n{str(e)}")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ENEMAnalyzer(root)
+    root.mainloop()
