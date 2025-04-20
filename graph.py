@@ -13,7 +13,7 @@ class ENEMAnalyzer:
         self.root.geometry("1000x700")
         
         self.questions = []
-        self.subjects = ["Física", "Matemática", "Biologia", "Química", 
+        self.subjects = ["Física", "Matemática", "Biologia", "Químic", 
                         "História", "Geografia", "Filosofia", "Sociologia"]
         
         self.load_data()
