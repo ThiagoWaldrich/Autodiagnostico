@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from matplotlib import ticker
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import json
@@ -108,14 +107,22 @@ class ENEMAnalyzer:
         self.tree.pack(side="left", fill=tk.BOTH, expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Botão para importar CSV
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill=tk.X, padx=5, pady=5)
-        
-        ttk.Button(btn_frame, text="Importar CSV", command=self.import_csv).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="Exportar CSV", command=self.export_csv).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="Atualizar", command=self.update_data_view).pack(side="right", padx=5)
-        ttk.Button(btn_frame, text="Excluir", command=self.delete_selected).pack(side="right", padx=5)
+
+        btn_import = ttk.Button(btn_frame, text="Importar CSV", command=self.import_csv)
+        btn_import.grid(row=0, column=0, padx=5)
+
+        btn_export = ttk.Button(btn_frame, text="Exportar CSV", command=self.export_csv)
+        btn_export.grid(row=0, column=1, padx=5)
+
+        btn_delete = ttk.Button(btn_frame, text="Excluir", command=self.delete_selected)
+        btn_delete.grid(row=0, column=2, padx=5)
+
+# Permitir que as colunas se expandam
+        btn_frame.columnconfigure(0, weight=1)
+        btn_frame.columnconfigure(1, weight=1)
+        btn_frame.columnconfigure(2, weight=1)
         
         self.update_data_view()
     
@@ -139,10 +146,10 @@ class ENEMAnalyzer:
         
     def delete_selected(self):
         selected_item = self.tree.selection()
-        if selected_item:
-            item_values = self.tree.item(selected_item, "values")
-        
-            # Remove da árvore (visual)
+        if not selected_item:
+            return
+        item_values = self.tree.item(selected_item, "values")
+
         self.tree.delete(selected_item)
 
         # Remove também do self.questions
@@ -154,7 +161,10 @@ class ENEMAnalyzer:
                 and (q["description"][:50] + "..." if len(q["description"]) > 50 else q["description"]) == item_values[3]
             ):
                 self.questions.remove(q)
-                break  # Sai do loop depois de remover
+                break
+        self.save_data()
+        self.update_charts()
+        self.update_data_view()
     
     def clear_form(self):
         self.subject.set('')
@@ -174,6 +184,10 @@ class ENEMAnalyzer:
             ax.set_position([0.1, 0.1, 0.8, 0.8])
             self.fig_pie.tight_layout(pad=0)
         self.canvas_pie.draw()
+        
+        for widget in self.canvas_bar.get_tk_widget().winfo_children():
+            widget.destroy()
+        self.canvas_bar.get_tk_widget().pack_forget()
         
         self.fig_bar.clear()
         subject_topics = defaultdict(lambda: defaultdict(int))
@@ -224,10 +238,11 @@ class ENEMAnalyzer:
         
         self.fig_bar.tight_layout()
         self.fig_bar.subplots_adjust(top=0.9, hspace=0.8, wspace=0.3)
+        self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, self.canvas_bar.get_tk_widget().master)
         self.canvas_bar.draw()
         self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.canvas_bar.flush_events()
-        self.canvas_bar.get_tk_widget().update_idletasks()
+        # self.canvas_bar.get_tk_widget().update_idletasks()
 
     
     def update_data_view(self):
