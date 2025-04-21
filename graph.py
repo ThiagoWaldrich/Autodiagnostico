@@ -71,18 +71,20 @@ class ENEMAnalyzer:
         
         # Gráfico de Pizza
         pie_frame = ttk.LabelFrame(frame, text="Distribuição por Matéria")
-        pie_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        pie_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
         
-        self.fig_pie = plt.Figure(figsize=(6,2))
+        self.fig_pie = plt.Figure(figsize=(6,4))
         self.canvas_pie = FigureCanvasTkAgg(self.fig_pie, pie_frame)
         self.canvas_pie.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
+        
         # Gráfico de Barras
-        bar_frame = ttk.LabelFrame(frame, text="Tópicos por Matéria", labelanchor="n")
-        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(20,5))
+        bar_frame = ttk.LabelFrame(frame, text="Tópicos por Matéria")
+        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(26,5))
         
         
-        self.fig_bar = plt.Figure(figsize=(25,10))
+        self.fig_bar = plt.Figure(figsize=(25,15))
+        
         self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, bar_frame)
         self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
@@ -113,6 +115,7 @@ class ENEMAnalyzer:
         ttk.Button(btn_frame, text="Importar CSV", command=self.import_csv).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Exportar CSV", command=self.export_csv).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Atualizar", command=self.update_data_view).pack(side="right", padx=5)
+        ttk.Button(btn_frame, text="Excluir", command=self.delete_selected).pack(side="right", padx=5)
         
         self.update_data_view()
     
@@ -133,6 +136,25 @@ class ENEMAnalyzer:
         self.update_charts()
         self.update_data_view()
         messagebox.showinfo("Sucesso", "Questão salva com sucesso!")
+        
+    def delete_selected(self):
+        selected_item = self.tree.selection()
+        if selected_item:
+            item_values = self.tree.item(selected_item, "values")
+        
+            # Remove da árvore (visual)
+        self.tree.delete(selected_item)
+
+        # Remove também do self.questions
+        for q in self.questions:
+            if (
+                q["subject"] == item_values[0]
+                and q["topic"] == item_values[1]
+                and q["subtopic"] == item_values[2]
+                and (q["description"][:50] + "..." if len(q["description"]) > 50 else q["description"]) == item_values[3]
+            ):
+                self.questions.remove(q)
+                break  # Sai do loop depois de remover
     
     def clear_form(self):
         self.subject.set('')
@@ -148,8 +170,9 @@ class ENEMAnalyzer:
         
         ax = self.fig_pie.add_subplot(111)
         if counts:
-            ax.pie(counts.values(), labels=counts.keys(), autopct='%1.1f%%')
-        ax.set_title("Distribuição por Matéria")
+            ax.pie(counts.values(), labels=counts.keys(), autopct='%1.1f%%', textprops={'fontsize':9})
+            ax.set_position([0.1, 0.1, 0.8, 0.8])
+            self.fig_pie.tight_layout(pad=0)
         self.canvas_pie.draw()
         
         self.fig_bar.clear()
@@ -160,11 +183,11 @@ class ENEMAnalyzer:
             subject_topics[subject][topic] += 1
 
         num_subjects = len(subject_topics)
-        cols = min(3, num_subjects)  # Máximo de 3 colunas por linha
-        rows = (num_subjects + cols - 1) // cols  # Calcula número de linhas necessário
+        cols = min(3, num_subjects)  
+        rows = (num_subjects + cols - 1) // cols  
 
         axes = self.fig_bar.subplots(rows, cols)
-        self.fig_bar.set_size_inches(6*cols, 4*rows)  # Tamanho dinâmico
+        self.fig_bar.set_size_inches(6*cols, 4*rows) 
 
         if num_subjects == 1:
             axes = np.array([[axes]])
@@ -183,9 +206,9 @@ class ENEMAnalyzer:
             bars = ax.bar(topic_names, topic_counts, width=0.4, color='#4a6fa5')
     
             ax.set_title(f"{subject}")
-            ax.set_ylabel("Quantidade")
             ax.grid(axis='y', linestyle='--', alpha=0.2)
             ax.set_xticklabels(topic_names, ha='right')
+            
     
         for bar in bars:
             height = bar.get_height()
@@ -198,9 +221,9 @@ class ENEMAnalyzer:
                 row = j // cols
                 col = j % cols
             axes[row, col].axis('off')
-
+        
         self.fig_bar.tight_layout()
-        self.fig_bar.subplots_adjust(top=0.9, hspace=0.2, wspace=0.3)
+        self.fig_bar.subplots_adjust(top=0.9, hspace=0.8, wspace=0.3)
         self.canvas_bar.draw()
         self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.canvas_bar.flush_events()
