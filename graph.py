@@ -6,6 +6,10 @@ import json
 import csv
 from collections import defaultdict
 import numpy as np
+import customtkinter as ctk
+
+ctk.set_appearance_mode("dark") 
+ctk.set_default_color_theme("blue")  
 
 class ENEMAnalyzer:
     def __init__(self, root):
@@ -19,6 +23,7 @@ class ENEMAnalyzer:
         
         self.load_data()
         self.create_widgets()
+        
     
     def load_data(self):
         try:
@@ -40,61 +45,54 @@ class ENEMAnalyzer:
         self.create_data_tab()
     
     def create_register_tab(self):
-        frame = ttk.Frame(self.notebook)
+        frame = ctk.CTkFrame(self.notebook)
         self.notebook.add(frame, text="Cadastrar")
         
         # Formulário
-        ttk.Label(frame, text="Matéria:").grid(row=0, column=0, padx=5, pady=5, sticky='w')
-        self.subject = ttk.Combobox(frame, values=self.subjects, state="readonly")
+        ctk.CTkLabel(frame, text="Matéria:").grid(row=0, column=0, padx=5, pady=5, sticky='w')
+        self.subject = ctk.CTkComboBox(frame, values=self.subjects)
         self.subject.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
         
-        ttk.Label(frame, text="Tópico:").grid(row=1, column=0, padx=5, pady=5, sticky='w')
-        self.topic = ttk.Entry(frame)
+        ctk.CTkLabel(frame, text="Tópico:").grid(row=1, column=0, padx=5, pady=5, sticky='w')
+        self.topic = ctk.CTkEntry(frame)
         self.topic.grid(row=1, column=1, padx=5, pady=5, sticky='ew')
         
-        ttk.Label(frame, text="Subtópico:").grid(row=2, column=0, padx=5, pady=5, sticky='w')
-        self.subtopic = ttk.Entry(frame)
+        ctk.CTkLabel(frame, text="Subtópico:").grid(row=2, column=0, padx=5, pady=5, sticky='w')
+        self.subtopic = ctk.CTkEntry(frame)
         self.subtopic.grid(row=2, column=1, padx=5, pady=5, sticky='ew')
         
-        ttk.Label(frame, text="Descrição:").grid(row=3, column=0, padx=5, pady=5, sticky='nw')
-        self.description = tk.Text(frame, height=5, width=40)
+        ctk.CTkLabel(frame, text="Descrição:").grid(row=3, column=0, padx=5, pady=5, sticky='nw')
+        self.description = ctk.CTkTextbox(frame, height=100)
         self.description.grid(row=3, column=1, padx=5, pady=5, sticky='ew')
         
-        ttk.Button(frame, text="Adicionar", command=self.save_question).grid(row=4, column=1, pady=10, sticky='e')
+        ctk.CTkButton(frame, text="Adicionar", command=self.save_question).grid(row=4, column=1, pady=10, sticky='e')
         
         frame.columnconfigure(1, weight=1)
     
     def create_charts_tab(self):
-        frame = ttk.Frame(self.notebook)
+        frame = ctk.CTkFrame(self.notebook)
         self.notebook.add(frame, text="Gráficos")
         
-        # Gráfico de Pizza
-        pie_frame = ttk.LabelFrame(frame, text="Distribuição por Matéria")
+        pie_frame = ctk.CTkFrame(frame)
         pie_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
         
         self.fig_pie = plt.Figure(figsize=(6,4))
         self.canvas_pie = FigureCanvasTkAgg(self.fig_pie, pie_frame)
         self.canvas_pie.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
-        
-        # Gráfico de Barras
-        bar_frame = ttk.LabelFrame(frame, text="Tópicos por Matéria")
+        bar_frame = ctk.CTkFrame(frame)
         bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(26,5))
         
-        
         self.fig_bar = plt.Figure(figsize=(25,15))
-        
         self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, bar_frame)
         self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        
         
         self.update_charts()
     
     def create_data_tab(self):
-        frame = ttk.Frame(self.notebook)
+        frame = ctk.CTkFrame(self.notebook)
         self.notebook.add(frame, text="Planilha")
         
-        # Treeview para exibir dados
         self.tree = ttk.Treeview(frame, columns=("Matéria", "Tópico", "Subtópico", "Descrição"), show="headings")
         self.tree.heading("Matéria", text="Matéria")
         self.tree.heading("Tópico", text="Tópico")
@@ -107,19 +105,13 @@ class ENEMAnalyzer:
         self.tree.pack(side="left", fill=tk.BOTH, expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        btn_frame = ttk.Frame(frame)
+        btn_frame = ctk.CTkFrame(frame)
         btn_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        btn_import = ttk.Button(btn_frame, text="Importar CSV", command=self.import_csv)
-        btn_import.grid(row=0, column=0, padx=5)
+        ctk.CTkButton(btn_frame, text="Importar CSV", command=self.import_csv).grid(row=0, column=0, padx=5)
+        ctk.CTkButton(btn_frame, text="Exportar CSV", command=self.export_csv).grid(row=0, column=1, padx=5)
+        ctk.CTkButton(btn_frame, text="Excluir", command=self.delete_selected).grid(row=0, column=2, padx=5)
 
-        btn_export = ttk.Button(btn_frame, text="Exportar CSV", command=self.export_csv)
-        btn_export.grid(row=0, column=1, padx=5)
-
-        btn_delete = ttk.Button(btn_frame, text="Excluir", command=self.delete_selected)
-        btn_delete.grid(row=0, column=2, padx=5)
-
-# Permitir que as colunas se expandam
         btn_frame.columnconfigure(0, weight=1)
         btn_frame.columnconfigure(1, weight=1)
         btn_frame.columnconfigure(2, weight=1)
@@ -305,6 +297,7 @@ class ENEMAnalyzer:
             messagebox.showerror("Erro", f"Falha ao exportar CSV:\n{str(e)}")
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    # root = tk.Tk()
+    root = ctk.CTk()
     app = ENEMAnalyzer(root)
     root.mainloop()
