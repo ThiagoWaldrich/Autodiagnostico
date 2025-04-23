@@ -8,23 +8,26 @@ from collections import defaultdict
 import numpy as np
 import customtkinter as ctk
 
-ctk.set_appearance_mode("dark") 
-ctk.set_default_color_theme("blue")  
-
 class ENEMAnalyzer:
     def __init__(self, root):
         self.root = root
-        self.root.title("Analisador ENEM")
-        self.root.geometry("1000x700")
+        self.setup_window()
+        self.initialize_data()
+        self.create_widgets()
         
+    def setup_window(self):
+        self.root.title("Analisador ENEM")
+        self.root.geometry("1200x700")
+        ctk.set_appearance_mode("system") 
+        ctk.set_default_color_theme("blue")  
+        
+    def initialize_data(self):
         self.questions = []
         self.subjects = ["Física", "Matemática", "Biologia", "Química", 
                         "História", "Geografia", "Filosofia", "Sociologia"]
-        
         self.load_data()
-        self.create_widgets()
         
-    
+        
     def load_data(self):
         try:
             with open('enem_data.json', 'r') as f:
@@ -37,16 +40,19 @@ class ENEMAnalyzer:
             json.dump(self.questions, f, indent=2)
     
     def create_widgets(self):
-        self.notebook = ttk.Notebook(self.root)
+        self.notebook = ctk.CTkTabview(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
+        self.register_tab = self.notebook.add("Cadastrar")  # Guarda a referência
+        self.charts_tab = self.notebook.add("Gráficos")
+        self.data_tab = self.notebook.add("Planilha")
         
         self.create_register_tab()
         self.create_charts_tab()
         self.create_data_tab()
-    
+        
+        
     def create_register_tab(self):
-        frame = ctk.CTkFrame(self.notebook)
-        self.notebook.add(frame, text="Cadastrar")
+        frame = self.notebook.tab("Cadastrar")
         
         # Formulário
         ctk.CTkLabel(frame, text="Matéria:").grid(row=0, column=0, padx=5, pady=5, sticky='w')
@@ -70,8 +76,7 @@ class ENEMAnalyzer:
         frame.columnconfigure(1, weight=1)
     
     def create_charts_tab(self):
-        frame = ctk.CTkFrame(self.notebook)
-        self.notebook.add(frame, text="Gráficos")
+        frame = self.notebook.tab("Gráficos")
         
         pie_frame = ctk.CTkFrame(frame)
         pie_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
@@ -90,8 +95,7 @@ class ENEMAnalyzer:
         self.update_charts()
     
     def create_data_tab(self):
-        frame = ctk.CTkFrame(self.notebook)
-        self.notebook.add(frame, text="Planilha")
+        frame = self.notebook.tab("Planilha")
         
         self.tree = ttk.Treeview(frame, columns=("Matéria", "Tópico", "Subtópico", "Descrição"), show="headings")
         self.tree.heading("Matéria", text="Matéria")
