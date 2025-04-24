@@ -7,6 +7,7 @@ import csv
 from collections import defaultdict
 import numpy as np
 import customtkinter as ctk
+from matplotlib.ticker import MultipleLocator
 
 class ENEMAnalyzer:
     def __init__(self, root):
@@ -17,14 +18,14 @@ class ENEMAnalyzer:
         
     def setup_window(self):
         self.root.title("Analisador ENEM")
-        self.root.geometry("1200x700")
-        ctk.set_appearance_mode("system") 
-        ctk.set_default_color_theme("blue")  
+        self.root.geometry("600x350")
+        ctk.set_appearance_mode("white") 
+        ctk.set_default_color_theme("dark-blue")  
         
     def initialize_data(self):
         self.questions = []
         self.subjects = ["Física", "Matemática", "Biologia", "Química", 
-                        "História", "Geografia", "Filosofia", "Sociologia"]
+                        "História", "Geografia", "Filosofia", "Sociologia", "Artes", "Literatura"]
         self.load_data()
         
         
@@ -55,8 +56,16 @@ class ENEMAnalyzer:
         frame = self.notebook.tab("Cadastrar")
         
         # Formulário
-        ctk.CTkLabel(frame, text="Matéria:").grid(row=0, column=0, padx=5, pady=5, sticky='w')
-        self.subject = ctk.CTkComboBox(frame, values=self.subjects)
+        ctk.CTkLabel(frame, text="Matéria:").grid(row=0, column=0, padx=2, pady=2, sticky='w')
+        self.subject = ctk.CTkComboBox(
+        frame, 
+        values=self.subjects,
+        width=200, 
+        dropdown_font=("Arial", 12),  
+        button_color="#2CC985", 
+        dropdown_hover_color="lightblue",
+        corner_radius=8 
+    )
         self.subject.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
         
         ctk.CTkLabel(frame, text="Tópico:").grid(row=1, column=0, padx=5, pady=5, sticky='w')
@@ -70,6 +79,19 @@ class ENEMAnalyzer:
         ctk.CTkLabel(frame, text="Descrição:").grid(row=3, column=0, padx=5, pady=5, sticky='nw')
         self.description = ctk.CTkTextbox(frame, height=100)
         self.description.grid(row=3, column=1, padx=5, pady=5, sticky='ew')
+        
+        ctk.CTkLabel(frame, text="Errou por falta de:").grid(row=4, column=0, padx=5, pady=5, sticky='nw')
+
+        self.var_conteudo = tk.BooleanVar()
+        self.var_atencao = tk.BooleanVar()
+        self.var_tempo = tk.BooleanVar()
+
+        checkbox_frame = ctk.CTkFrame(frame)
+        checkbox_frame.grid(row=4, column=1, sticky='w')
+
+        ctk.CTkCheckBox(checkbox_frame, text="Conteúdo", variable=self.var_conteudo).pack(side='left', padx=5)
+        ctk.CTkCheckBox(checkbox_frame, text="Atenção", variable=self.var_atencao).pack(side='left', padx=5)
+        ctk.CTkCheckBox(checkbox_frame, text="Tempo", variable=self.var_tempo).pack(side='left', padx=5)
         
         ctk.CTkButton(frame, text="Adicionar", command=self.save_question).grid(row=4, column=1, pady=10, sticky='e')
         
@@ -97,11 +119,12 @@ class ENEMAnalyzer:
     def create_data_tab(self):
         frame = self.notebook.tab("Planilha")
         
-        self.tree = ttk.Treeview(frame, columns=("Matéria", "Tópico", "Subtópico", "Descrição"), show="headings")
+        self.tree = ttk.Treeview(frame, columns=("Matéria", "Tópico", "Subtópico", "Descrição", "Erro"), show="headings")
         self.tree.heading("Matéria", text="Matéria")
         self.tree.heading("Tópico", text="Tópico")
         self.tree.heading("Subtópico", text="Subtópico")
         self.tree.heading("Descrição", text="Descrição")
+        self.tree.heading("Erro", text="Erro")
         
         scrollbar = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -131,7 +154,12 @@ class ENEMAnalyzer:
             "subject": self.subject.get(),
             "topic": self.topic.get(),
             "subtopic": self.subtopic.get(),
-            "description": self.description.get("1.0", tk.END).strip()
+            "description": self.description.get("1.0", tk.END).strip(),
+            "erros": {
+                "conteudo": self.var_conteudo.get(),
+                "atencao": self.var_atencao.get(),
+                "tempo": self.var_tempo.get()
+            }
         })
         
         self.save_data()
@@ -167,6 +195,9 @@ class ENEMAnalyzer:
         self.topic.delete(0, tk.END)
         self.subtopic.delete(0, tk.END)
         self.description.delete("1.0", tk.END)
+        self.var_conteudo.set(False)
+        self.var_atencao.set(False)
+        self.var_tempo.set(False)
     
     def update_charts(self):
         self.fig_pie.clear()
@@ -208,6 +239,7 @@ class ENEMAnalyzer:
             row = i // cols
             col = i % cols
             ax = axes[row, col]
+            ax.yaxis.set_major_locator(MultipleLocator(1))
     
             sorted_topics = sorted(topics.items(), key=lambda x: x[1], reverse=True)
             topic_names = [t[0] for t in sorted_topics]
@@ -216,15 +248,15 @@ class ENEMAnalyzer:
             bars = ax.bar(topic_names, topic_counts, width=0.4, color='#4a6fa5')
     
             ax.set_title(f"{subject}")
-            ax.grid(axis='y', linestyle='--', alpha=0.2)
+            ax.grid(axis='y', linestyle='--', alpha=1)
             ax.set_xticklabels(topic_names, ha='right')
             
     
-        for bar in bars:
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
-               f'{int(height)}',
-               ha='center', va='bottom')
+        # for bar in bars:
+        #     height = bar.get_height()
+        #     ax.text(bar.get_x() + bar.get_width()/2., height,
+        #        f'{int(height)}',
+        #        ha='center', va='bottom')
 
         if num_subjects < rows * cols:
             for j in range(num_subjects, rows * cols):
@@ -246,29 +278,45 @@ class ENEMAnalyzer:
             self.tree.delete(item)
             
         for q in self.questions:
+            erros = q.get("erros", {})
+            erro_str = ", ".join([
+                tipo.capitalize()
+                for tipo, marcado in erros.items()
+                if marcado
+            ]) if erros else ""
+
             self.tree.insert("", tk.END, values=(
                 q["subject"],
                 q["topic"],
                 q["subtopic"],
-                q["description"][:50] + "..." if len(q["description"]) > 50 else q["description"]
+                q["description"][:50] + "..." if len(q["description"]) > 50 else q["description"],
+                erro_str
             ))
     
     def import_csv(self):
         filepath = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
         if not filepath:
             return
-            
+        
         try:
             with open(filepath, newline='', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
+                    erro_str = row.get("Erro", "").lower()
+                    erros_dict = {
+                    "conteudo": "conteúdo" in erro_str,
+                    "atencao": "atenção" in erro_str,
+                    "tempo": "tempo" in erro_str
+                    }
+
                     self.questions.append({
                         "subject": row.get("Matéria", ""),
                         "topic": row.get("Tópico", ""),
                         "subtopic": row.get("Subtópico", ""),
-                        "description": row.get("Descrição", "")
+                        "description": row.get("Descrição", ""),
+                        "erros": erros_dict
                     })
-            
+        
             self.save_data()
             self.update_charts()
             self.update_data_view()
@@ -280,22 +328,31 @@ class ENEMAnalyzer:
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV Files", "*.csv")]
-        )
+    )
         if not filepath:
             return
-            
+        
         try:
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["Matéria", "Tópico", "Subtópico", "Descrição"])
-                for q in self.questions:
-                    writer.writerow([
-                        q["subject"],
-                        q["topic"],
-                        q["subtopic"],
-                        q["description"]
-                    ])
+                writer.writerow(["Matéria", "Tópico", "Subtópico", "Descrição", "Erro"])
             
+                for q in self.questions:
+                    erros = q.get("erros", {})
+                    erro_str = ", ".join([
+                        tipo.capitalize()
+                        for tipo, marcado in erros.items()
+                        if marcado
+                ])  if erros else ""
+                
+                writer.writerow([
+                    q["subject"],
+                    q["topic"],
+                    q["subtopic"],
+                    q["description"],
+                    erro_str
+                ])
+        
             messagebox.showinfo("Sucesso", f"Dados exportados para:\n{filepath}")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao exportar CSV:\n{str(e)}")
