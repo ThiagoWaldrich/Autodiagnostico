@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import chardet
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import json
@@ -101,7 +102,7 @@ class ENEMAnalyzer:
         frame = self.notebook.tab("Gráficos")
         
         pie_frame = ctk.CTkFrame(frame)
-        pie_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
+        pie_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=2)
         
         self.fig_pie = plt.Figure(figsize=(6,4))
         self.canvas_pie = FigureCanvasTkAgg(self.fig_pie, pie_frame)
@@ -176,7 +177,6 @@ class ENEMAnalyzer:
 
         self.tree.delete(selected_item)
 
-        # Remove também do self.questions
         for q in self.questions:
             if (
                 q["subject"] == item_values[0]
@@ -228,7 +228,7 @@ class ENEMAnalyzer:
         rows = (num_subjects + cols - 1) // cols  
 
         axes = self.fig_bar.subplots(rows, cols)
-        self.fig_bar.set_size_inches(6*cols, 4*rows) 
+        self.fig_bar.set_size_inches(6.5*cols, 4*rows) 
 
         if num_subjects == 1:
             axes = np.array([[axes]])
@@ -249,7 +249,7 @@ class ENEMAnalyzer:
     
             ax.set_title(f"{subject}")
             ax.grid(axis='y', linestyle='--', alpha=1)
-            ax.set_xticklabels(topic_names, ha='right')
+            ax.set_xticklabels(topic_names, ha='right', rotation=45)
             
     
         # for bar in bars:
@@ -293,69 +293,118 @@ class ENEMAnalyzer:
                 erro_str
             ))
     
+    
     def import_csv(self):
+    
         filepath = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
         if not filepath:
             return
-        
-        try:
-            with open(filepath, newline='', encoding='utf-8') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    erro_str = row.get("Erro", "").lower()
-                    erros_dict = {
-                    "conteudo": "conteúdo" in erro_str,
-                    "atencao": "atenção" in erro_str,
-                    "tempo": "tempo" in erro_str
-                    }
 
-                    self.questions.append({
-                        "subject": row.get("Matéria", ""),
-                        "topic": row.get("Tópico", ""),
-                        "subtopic": row.get("Subtópico", ""),
-                        "description": row.get("Descrição", ""),
-                        "erros": erros_dict
-                    })
-        
-            self.save_data()
-            self.update_charts()
-            self.update_data_view()
-            messagebox.showinfo("Sucesso", "Dados importados com sucesso!")
+        try:
+            with open(filepath, 'rb') as f:
+                encoding = chardet.detect(f.read())['encoding']
+
+            with open(filepath, 'r', newline='', encoding=encoding) as csvfile:
+                try:
+                    dialect = csv.Sniffer().sniff(csvfile.read(1024))
+                    csvfile.seek(0)
+                except:
+                
+                    dialect = csv.excel_tab
+                    csvfile.seek(0)
+            
+                reader = csv.DictReader(csvfile, dialect=dialect)
+                imported_count = 0
+            
+                for row in reader:
+                    try:
+                    
+                        if not any(row.values()):
+                            continue
+                        
+                        subject = row.get('Matéria', '').strip()
+                        topic = row.get('Tópico', '').strip()
+                        subtopic = row.get('Subtópico', '').strip()
+                        description = row.get('Descrição', '').strip()
+                        erros_str = row.get('Erros', '').strip().lower()  
+                    
+                    
+                        if not subject or not topic:
+                            print(f"Linha ignorada - faltam Matéria ou Tópico: {row}")
+                            continue
+                        
+                        erros_dict = {
+                            "conteudo": False,
+                            "atencao": False,
+                            "tempo": False
+                        }
+                    
+                        if erros_str:
+                            erros_dict = {
+                                "conteudo": any(p in erros_str for p in ['conteudo', 'conteúdo', 'content']),
+                                "atencao": any(p in erros_str for p in ['atencao', 'atenção', 'attention']),
+                                "tempo": any(p in erros_str for p in ['tempo', 'time'])
+                            }
+                    
+                        question = {
+                            "subject": subject,
+                            "topic": topic,
+                            "subtopic": subtopic,
+                            "description": description,
+                            "erros": erros_dict
+                        }
+                    
+                        self.questions.append(question)
+                        imported_count += 1
+                    
+                    except Exception as e:
+                        print(f"Erro ao processar linha: {row}\nErro: {str(e)}")
+                        continue
+
+                self.save_data()
+                self.update_charts()
+                self.update_data_view()
+            
+            if imported_count > 0:
+                messagebox.showinfo("Sucesso", f"{imported_count} questões importadas com sucesso!")
+            else:
+                messagebox.showwarning("Aviso", "Nenhuma questão foi importada. Verifique o formato do arquivo.")
+                
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao importar CSV:\n{str(e)}")
-    
+            messagebox.showerror("Erro", f"Falha na importação:\n{str(e)}")
+
     def export_csv(self):
+        if not self.questions:
+            messagebox.showwarning("Aviso", "Nenhum dado para exportar!")
+            return
+
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV Files", "*.csv")]
-    )
+        )
         if not filepath:
             return
-        
+
         try:
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["Matéria", "Tópico", "Subtópico", "Descrição", "Erro"])
-            
-                for q in self.questions:
-                    erros = q.get("erros", {})
-                    erro_str = ", ".join([
-                        tipo.capitalize()
-                        for tipo, marcado in erros.items()
-                        if marcado
-                ])  if erros else ""
+                fieldnames = ['materia', 'topico', 'subtopico', 'descricao', 'erros']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
-                writer.writerow([
-                    q["subject"],
-                    q["topic"],
-                    q["subtopic"],
-                    q["description"],
-                    erro_str
-                ])
-        
-            messagebox.showinfo("Sucesso", f"Dados exportados para:\n{filepath}")
+                writer.writeheader()
+                for questao in self.questions:
+                    # Converter dicionário de erros para string
+                    erros_str = ', '.join([k for k, v in questao['erros'].items() if v])
+                    writer.writerow({
+                        'materia': questao['materia'],
+                        'topico': questao['topico'],
+                        'subtopico': questao['subtopico'],
+                        'descricao': questao['descricao'],
+                        'erros': erros_str or 'Nenhum'
+                    })
+            
+            messagebox.showinfo("Sucesso", "Dados exportados com sucesso!")
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao exportar CSV:\n{str(e)}")
+            messagebox.showerror("Erro", f"Falha na exportação:\n{str(e)}")
 
 if __name__ == "__main__":
     # root = tk.Tk()
