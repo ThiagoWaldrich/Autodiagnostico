@@ -29,7 +29,6 @@ class ENEMAnalyzer:
                         "História", "Geografia", "Filosofia", "Sociologia", "Artes", "Literatura"]
         self.load_data()
         
-        
     def load_data(self):
         try:
             with open('enem_data.json', 'r') as f:
@@ -44,29 +43,29 @@ class ENEMAnalyzer:
     def create_widgets(self):
         self.notebook = ctk.CTkTabview(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
-        self.register_tab = self.notebook.add("Cadastrar")  # Guarda a referência
+        self.register_tab = self.notebook.add("Cadastrar")
         self.charts_tab = self.notebook.add("Gráficos")
+        self.subtopics_tab = self.notebook.add("Subtópicos") 
         self.data_tab = self.notebook.add("Planilha")
         
         self.create_register_tab()
         self.create_charts_tab()
+        self.create_subtopics_tab()  
         self.create_data_tab()
-        
         
     def create_register_tab(self):
         frame = self.notebook.tab("Cadastrar")
-        
-        # Formulário
+
         ctk.CTkLabel(frame, text="Matéria:").grid(row=0, column=0, padx=2, pady=2, sticky='w')
         self.subject = ctk.CTkComboBox(
-        frame, 
-        values=self.subjects,
-        width=200, 
-        dropdown_font=("Arial", 12),  
-        button_color="#2CC985", 
-        dropdown_hover_color="lightblue",
-        corner_radius=8 
-    )
+            frame, 
+            values=self.subjects,
+            width=200, 
+            dropdown_font=("Arial", 12),  
+            button_color="#2CC985", 
+            dropdown_hover_color="lightblue",
+            corner_radius=8 
+        )
         self.subject.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
         
         ctk.CTkLabel(frame, text="Tópico:").grid(row=1, column=0, padx=5, pady=5, sticky='w')
@@ -101,21 +100,50 @@ class ENEMAnalyzer:
     def create_charts_tab(self):
         frame = self.notebook.tab("Gráficos")
         
-        pie_frame = ctk.CTkFrame(frame)
-        pie_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=2)
+        pie_container = ctk.CTkFrame(frame)
+        pie_container.pack(fill=tk.BOTH, expand=True, padx=5)
         
-        self.fig_pie = plt.Figure(figsize=(6,4))
+        pie_frame = ctk.CTkFrame(pie_container)
+        pie_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        
+        self.fig_pie = plt.Figure(figsize=(5,3))
         self.canvas_pie = FigureCanvasTkAgg(self.fig_pie, pie_frame)
         self.canvas_pie.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
-        bar_frame = ctk.CTkFrame(frame)
-        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(26,5))
+        table_frame = ctk.CTkFrame(pie_container)
+        table_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=5)
         
-        self.fig_bar = plt.Figure(figsize=(25,15))
+        self.count_table = ttk.Treeview(table_frame, columns=("Matéria", "Quantidade"), show="headings", height=5)
+        self.count_table.heading("Matéria", text="Matéria")
+        self.count_table.heading("Quantidade", text="Quantidade")
+        self.count_table.column("Matéria", width=120)
+        self.count_table.column("Quantidade", width=80)
+        
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.count_table.yview)
+        self.count_table.configure(yscrollcommand=scrollbar.set)
+        
+        self.count_table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill="y")
+        
+        bar_frame = ctk.CTkFrame(frame)
+        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(22,5))
+        
+        self.fig_bar = plt.Figure()
         self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, bar_frame)
         self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         self.update_charts()
+    
+    def create_subtopics_tab(self):
+        frame = self.notebook.tab("Subtópicos")
+        self.subtopics_frame = ctk.CTkFrame(frame)
+        self.subtopics_frame.pack(fill=tk.BOTH, expand=True, padx=5)
+        
+        self.fig_subtopics = plt.Figure(figsize=(10, 6))
+        self.canvas_subtopics = FigureCanvasTkAgg(self.fig_subtopics, self.subtopics_frame)
+        self.canvas_subtopics.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
+        self.update_subtopics_charts()
     
     def create_data_tab(self):
         frame = self.notebook.tab("Planilha")
@@ -166,9 +194,10 @@ class ENEMAnalyzer:
         self.save_data()
         self.clear_form()
         self.update_charts()
+        self.update_subtopics_charts()
         self.update_data_view()
         messagebox.showinfo("Sucesso", "Questão salva com sucesso!")
-        
+    
     def delete_selected(self):
         selected_item = self.tree.selection()
         if not selected_item:
@@ -188,6 +217,7 @@ class ENEMAnalyzer:
                 break
         self.save_data()
         self.update_charts()
+        self.update_subtopics_charts()
         self.update_data_view()
     
     def clear_form(self):
@@ -207,10 +237,17 @@ class ENEMAnalyzer:
         
         ax = self.fig_pie.add_subplot(111)
         if counts:
-            ax.pie(counts.values(), labels=counts.keys(), autopct='%1.1f%%', textprops={'fontsize':9})
+            ax.pie(counts.values(), labels=counts.keys(), autopct='%1.1f%%', textprops={'fontsize':7})
             ax.set_position([0.1, 0.1, 0.8, 0.8])
             self.fig_pie.tight_layout(pad=0)
         self.canvas_pie.draw()
+        
+        for item in self.count_table.get_children():
+            self.count_table.delete(item)
+        
+        sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        for subject, count in sorted_counts:
+            self.count_table.insert("", tk.END, values=(subject, count))
         
         for widget in self.canvas_bar.get_tk_widget().winfo_children():
             widget.destroy()
@@ -249,29 +286,90 @@ class ENEMAnalyzer:
     
             ax.set_title(f"{subject}")
             ax.grid(axis='y', linestyle='--', alpha=1)
-            ax.set_xticklabels(topic_names, ha='right', rotation=45)
+            ax.set_xticklabels(topic_names, ha='right', rotation=20)
             
-    
-        # for bar in bars:
-        #     height = bar.get_height()
-        #     ax.text(bar.get_x() + bar.get_width()/2., height,
-        #        f'{int(height)}',
-        #        ha='center', va='bottom')
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       f'{int(height)}',
+                       ha='center', va='bottom')
 
         if num_subjects < rows * cols:
             for j in range(num_subjects, rows * cols):
                 row = j // cols
                 col = j % cols
-            axes[row, col].axis('off')
+                axes[row, col].axis('off')
         
         self.fig_bar.tight_layout()
-        self.fig_bar.subplots_adjust(top=0.9, hspace=0.8, wspace=0.3)
+        self.fig_bar.subplots_adjust(top=0.95, hspace=0.61, wspace=0.3, bottom=0.05)
         self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, self.canvas_bar.get_tk_widget().master)
         self.canvas_bar.draw()
         self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        self.canvas_bar.flush_events()
-        # self.canvas_bar.get_tk_widget().update_idletasks()
+    
+    def update_subtopics_charts(self):
+        self.fig_subtopics.clear()
+        
+        
+        subject_subtopics = defaultdict(lambda: defaultdict(int))
+        for q in self.questions:
+            subject = q['subject']
+            subtopic = q['subtopic'] or "Sem subtópico"  
+            subject_subtopics[subject][subtopic] += 1
+        
+        if not subject_subtopics:
+            ax = self.fig_subtopics.add_subplot(111)
+            ax.text(0.5, 0.5, 'Nenhum dado disponível', 
+                    ha='center', va='center', fontsize=7)
+            self.canvas_subtopics.draw()
+            return
+        
 
+        num_subjects = len(subject_subtopics)
+        cols = min(2, num_subjects) 
+        rows = (num_subjects + cols - 1) // cols
+        
+        axes = self.fig_subtopics.subplots(rows, cols)
+        self.fig_subtopics.set_size_inches(8 * cols, 4 * rows)
+        
+        if num_subjects == 1:
+            axes = np.array([[axes]])
+        elif rows == 1:
+            axes = np.array([axes])
+        
+        for i, (subject, subtopics) in enumerate(subject_subtopics.items()):
+            row = i // cols
+            col = i % cols
+            ax = axes[row, col]
+            
+
+            sorted_subtopics = sorted(subtopics.items(), key=lambda x: x[1], reverse=True)
+            subtopic_names = [t[0] for t in sorted_subtopics]
+            subtopic_counts = [t[1] for t in sorted_subtopics]
+            
+
+            bars = ax.bar(subtopic_names, subtopic_counts, color='#4a6fa5')
+            ax.set_title(f"Subtópicos de {subject}")
+            ax.grid(axis='y', linestyle='--', alpha=0.7)
+            
+
+            plt.setp(ax.get_xticklabels(), rotation=25, ha='right')
+            
+
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{int(height)}',
+                        ha='center', va='bottom')
+        
+        if num_subjects < rows * cols:
+            for j in range(num_subjects, rows * cols):
+                row = j // cols
+                col = j % cols
+                axes[row, col].axis('off')
+        
+        self.fig_subtopics.tight_layout()
+        self.canvas_subtopics.draw()
+        self.fig_subtopics.subplots_adjust(top=0.95, hspace=0, wspace=0.3, bottom=0.1)
     
     def update_data_view(self):
         for item in self.tree.get_children():
@@ -293,9 +391,7 @@ class ENEMAnalyzer:
                 erro_str
             ))
     
-    
     def import_csv(self):
-    
         filepath = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
         if not filepath:
             return
@@ -309,7 +405,6 @@ class ENEMAnalyzer:
                     dialect = csv.Sniffer().sniff(csvfile.read(1024))
                     csvfile.seek(0)
                 except:
-                
                     dialect = csv.excel_tab
                     csvfile.seek(0)
             
@@ -318,7 +413,6 @@ class ENEMAnalyzer:
             
                 for row in reader:
                     try:
-                    
                         if not any(row.values()):
                             continue
                         
@@ -327,7 +421,6 @@ class ENEMAnalyzer:
                         subtopic = row.get('Subtópico', '').strip()
                         description = row.get('Descrição', '').strip()
                         erros_str = row.get('Erros', '').strip().lower()  
-                    
                     
                         if not subject or not topic:
                             print(f"Linha ignorada - faltam Matéria ou Tópico: {row}")
@@ -363,6 +456,7 @@ class ENEMAnalyzer:
 
                 self.save_data()
                 self.update_charts()
+                self.update_subtopics_charts()
                 self.update_data_view()
             
             if imported_count > 0:
@@ -387,19 +481,18 @@ class ENEMAnalyzer:
 
         try:
             with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['materia', 'topico', 'subtopico', 'descricao', 'erros']
+                fieldnames = ['Matéria', 'Tópico', 'Subtópico', 'Descrição', 'Erros']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
                 for questao in self.questions:
-                    # Converter dicionário de erros para string
                     erros_str = ', '.join([k for k, v in questao['erros'].items() if v])
                     writer.writerow({
-                        'materia': questao['materia'],
-                        'topico': questao['topico'],
-                        'subtopico': questao['subtopico'],
-                        'descricao': questao['descricao'],
-                        'erros': erros_str or 'Nenhum'
+                        'Matéria': questao['subject'],
+                        'Tópico': questao['topic'],
+                        'Subtópico': questao['subtopic'],
+                        'Descrição': questao['description'],
+                        'Erros': erros_str or 'Nenhum'
                     })
             
             messagebox.showinfo("Sucesso", "Dados exportados com sucesso!")
@@ -407,7 +500,6 @@ class ENEMAnalyzer:
             messagebox.showerror("Erro", f"Falha na exportação:\n{str(e)}")
 
 if __name__ == "__main__":
-    # root = tk.Tk()
     root = ctk.CTk()
     app = ENEMAnalyzer(root)
     root.mainloop()
