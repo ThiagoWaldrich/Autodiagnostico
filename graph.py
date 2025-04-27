@@ -19,7 +19,7 @@ class ENEMAnalyzer:
         
     def setup_window(self):
         self.root.title("Analisador ENEM")
-        self.root.geometry("600x350")
+        self.root.geometry("800x600") 
         ctk.set_appearance_mode("white") 
         ctk.set_default_color_theme("dark-blue")  
         
@@ -28,6 +28,13 @@ class ENEMAnalyzer:
         self.subjects = ["Física", "Matemática", "Biologia", "Química", 
                         "História", "Geografia", "Filosofia", "Sociologia", "Artes", "Literatura"]
         self.load_data()
+        self.root.after(100, self.update_initial_views)
+    
+    def update_initial_views(self):
+   
+        self.update_charts()
+        self.update_subtopics_charts()
+        self.update_data_view()
         
     def load_data(self):
         try:
@@ -100,9 +107,11 @@ class ENEMAnalyzer:
     def create_charts_tab(self):
         frame = self.notebook.tab("Gráficos")
         
+        # Container superior 
         pie_container = ctk.CTkFrame(frame)
-        pie_container.pack(fill=tk.BOTH, expand=True, padx=5)
+        pie_container.pack(fill=tk.BOTH, expand=False, padx=5, pady=5)
         
+        # Frame para o gráfico de pizza
         pie_frame = ctk.CTkFrame(pie_container)
         pie_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
         
@@ -110,6 +119,7 @@ class ENEMAnalyzer:
         self.canvas_pie = FigureCanvasTkAgg(self.fig_pie, pie_frame)
         self.canvas_pie.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
+        # Frame para a tabela
         table_frame = ctk.CTkFrame(pie_container)
         table_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=5)
         
@@ -125,25 +135,24 @@ class ENEMAnalyzer:
         self.count_table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill="y")
         
-        bar_frame = ctk.CTkFrame(frame)
-        bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(22,5))
+        # Container com scroll para os gráficos de barras
+        self.bar_scroll_frame = ctk.CTkScrollableFrame(frame, orientation="vertical")
+        self.bar_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        self.fig_bar = plt.Figure()
-        self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, bar_frame)
-        self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        
-        self.update_charts()
+        # Frame para os gráficos de barras dentro do scrollable frame
+        self.bar_frame = ctk.CTkFrame(self.bar_scroll_frame)
+        self.bar_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
     def create_subtopics_tab(self):
         frame = self.notebook.tab("Subtópicos")
-        self.subtopics_frame = ctk.CTkFrame(frame)
-        self.subtopics_frame.pack(fill=tk.BOTH, expand=True, padx=5)
         
-        self.fig_subtopics = plt.Figure(figsize=(10, 6))
-        self.canvas_subtopics = FigureCanvasTkAgg(self.fig_subtopics, self.subtopics_frame)
-        self.canvas_subtopics.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        # Container com scroll para os gráficos de subtópicos
+        self.subtopics_scroll_frame = ctk.CTkScrollableFrame(frame, orientation="vertical")
+        self.subtopics_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        self.update_subtopics_charts()
+        # Frame para os gráficos de subtópicos dentro do scrollable frame
+        self.subtopics_frame = ctk.CTkFrame(self.subtopics_scroll_frame)
+        self.subtopics_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
     def create_data_tab(self):
         frame = self.notebook.tab("Planilha")
@@ -230,6 +239,7 @@ class ENEMAnalyzer:
         self.var_tempo.set(False)
     
     def update_charts(self):
+        # Atualiza o gráfico de pizza
         self.fig_pie.clear()
         counts = defaultdict(int)
         for q in self.questions:
@@ -237,11 +247,12 @@ class ENEMAnalyzer:
         
         ax = self.fig_pie.add_subplot(111)
         if counts:
-            ax.pie(counts.values(), labels=counts.keys(), autopct='%1.1f%%', textprops={'fontsize':7})
+            ax.pie(counts.values(), labels=counts.keys(), autopct='%1.1f%%', textprops={'fontsize':8})
             ax.set_position([0.1, 0.1, 0.8, 0.8])
             self.fig_pie.tight_layout(pad=0)
         self.canvas_pie.draw()
         
+        # Atualiza a tabela de contagem
         for item in self.count_table.get_children():
             self.count_table.delete(item)
         
@@ -249,127 +260,123 @@ class ENEMAnalyzer:
         for subject, count in sorted_counts:
             self.count_table.insert("", tk.END, values=(subject, count))
         
-        for widget in self.canvas_bar.get_tk_widget().winfo_children():
+        # Limpa o frame de gráficos de barras anterior
+        for widget in self.bar_frame.winfo_children():
             widget.destroy()
-        self.canvas_bar.get_tk_widget().pack_forget()
         
-        self.fig_bar.clear()
+        # Agrupa os dados por matéria e tópico
         subject_topics = defaultdict(lambda: defaultdict(int))
         for q in self.questions:
             subject = q['subject']
             topic = q['topic']
             subject_topics[subject][topic] += 1
 
-        num_subjects = len(subject_topics)
-        cols = min(3, num_subjects)  
-        rows = (num_subjects + cols - 1) // cols  
-
-        axes = self.fig_bar.subplots(rows, cols)
-        self.fig_bar.set_size_inches(6.5*cols, 4*rows) 
-
-        if num_subjects == 1:
-            axes = np.array([[axes]])
-        elif rows == 1:
-            axes = np.array([axes])
-
-        for i, (subject, topics) in enumerate(subject_topics.items()):
-            row = i // cols
-            col = i % cols
-            ax = axes[row, col]
-            ax.yaxis.set_major_locator(MultipleLocator(1))
-    
+        if not subject_topics:
+            return
+        
+        # Para cada matéria, criar um gráfico separado
+        for subject, topics in subject_topics.items():
+            # Criar um frame separado para cada matéria
+            subject_frame = ctk.CTkFrame(self.bar_frame)
+            subject_frame.pack(fill=tk.X, expand=True, padx=5, pady=15, anchor="n")
+            
+            # Label para o título da matéria
+            ctk.CTkLabel(subject_frame, text=f"Tópicos de {subject}", font=("Arial", 14, "bold")).pack(pady=(5, 10))
+            
+            # Criar o gráfico
+            fig = plt.Figure(figsize=(7, max(4, len(topics) * 0.4)))
+            ax = fig.add_subplot(111)
+            
+            # Ordenar os tópicos por contagem
             sorted_topics = sorted(topics.items(), key=lambda x: x[1], reverse=True)
             topic_names = [t[0] for t in sorted_topics]
             topic_counts = [t[1] for t in sorted_topics]
-    
-            bars = ax.bar(topic_names, topic_counts, width=0.4, color='#4a6fa5')
-    
-            ax.set_title(f"{subject}")
-            ax.grid(axis='y', linestyle='--', alpha=1)
-            ax.set_xticklabels(topic_names, ha='right', rotation=20)
             
+            # Criar o gráfico de barras
+            bars = ax.bar(topic_names, topic_counts, width=0.6, color='#4a6fa5')
+            
+            # Configurações do gráfico
+            ax.grid(axis='y', linestyle='--', alpha=0.7)
+            ax.set_xticklabels(topic_names, ha='right', rotation=20, fontsize=9)
+            ax.tick_params(axis='y', labelsize=9)
+            ax.set_ylim(0, max(topic_counts) * 1.2)  # Espaço extra para os valores acima das barras
+            ax.yaxis.set_major_locator(MultipleLocator(1))
+            
+            # Adicionar valores em cima das barras
             for bar in bars:
                 height = bar.get_height()
                 ax.text(bar.get_x() + bar.get_width()/2., height,
                        f'{int(height)}',
-                       ha='center', va='bottom')
-
-        if num_subjects < rows * cols:
-            for j in range(num_subjects, rows * cols):
-                row = j // cols
-                col = j % cols
-                axes[row, col].axis('off')
-        
-        self.fig_bar.tight_layout()
-        self.fig_bar.subplots_adjust(top=0.95, hspace=0.61, wspace=0.3, bottom=0.05)
-        self.canvas_bar = FigureCanvasTkAgg(self.fig_bar, self.canvas_bar.get_tk_widget().master)
-        self.canvas_bar.draw()
-        self.canvas_bar.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+                       ha='center', va='bottom', fontsize=9)
+            
+            # Ajustar o layout
+            fig.tight_layout()
+            
+            # Criar canvas para o gráfico
+            canvas = FigureCanvasTkAgg(fig, subject_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
     def update_subtopics_charts(self):
-        self.fig_subtopics.clear()
+        # Limpa o frame de gráficos de subtópicos
+        for widget in self.subtopics_frame.winfo_children():
+            widget.destroy()
         
-        
+        # Agrupa os dados por matéria e subtópico
         subject_subtopics = defaultdict(lambda: defaultdict(int))
         for q in self.questions:
             subject = q['subject']
-            subtopic = q['subtopic'] or "Sem subtópico"  
+            subtopic = q['subtopic'] or "Sem subtópico"
             subject_subtopics[subject][subtopic] += 1
         
         if not subject_subtopics:
-            ax = self.fig_subtopics.add_subplot(111)
-            ax.text(0.5, 0.5, 'Nenhum dado disponível', 
-                    ha='center', va='center', fontsize=7)
-            self.canvas_subtopics.draw()
+            # Se não houver dados, exibe uma mensagem
+            no_data_label = ctk.CTkLabel(self.subtopics_frame, text="Nenhum dado disponível")
+            no_data_label.pack(expand=True, pady=20)
             return
         
-
-        num_subjects = len(subject_subtopics)
-        cols = min(2, num_subjects) 
-        rows = (num_subjects + cols - 1) // cols
-        
-        axes = self.fig_subtopics.subplots(rows, cols)
-        self.fig_subtopics.set_size_inches(8 * cols, 4 * rows)
-        
-        if num_subjects == 1:
-            axes = np.array([[axes]])
-        elif rows == 1:
-            axes = np.array([axes])
-        
-        for i, (subject, subtopics) in enumerate(subject_subtopics.items()):
-            row = i // cols
-            col = i % cols
-            ax = axes[row, col]
+        # Para cada matéria, criar um gráfico separado
+        for subject, subtopics in subject_subtopics.items():
+            # Criar um frame separado para cada matéria
+            subject_frame = ctk.CTkFrame(self.subtopics_frame)
+            subject_frame.pack(fill=tk.X, expand=True, padx=5, pady=15, anchor="n")
             
-
+            # Label para o título da matéria
+            ctk.CTkLabel(subject_frame, text=f"Subtópicos de {subject}", font=("Arial", 14, "bold")).pack(pady=(5, 10))
+            
+            # Criar o gráfico
+            fig = plt.Figure(figsize=(7, max(4, len(subtopics) * 0.4)))
+            ax = fig.add_subplot(111)
+            
+            # Ordenar os subtópicos por contagem
             sorted_subtopics = sorted(subtopics.items(), key=lambda x: x[1], reverse=True)
             subtopic_names = [t[0] for t in sorted_subtopics]
             subtopic_counts = [t[1] for t in sorted_subtopics]
             
-
-            bars = ax.bar(subtopic_names, subtopic_counts, color='#4a6fa5')
-            ax.set_title(f"Subtópicos de {subject}")
+            # Criar o gráfico de barras
+            bars = ax.bar(subtopic_names, subtopic_counts, width=0.6, color='#4a6fa5')
+            
+            # Configurações do gráfico
             ax.grid(axis='y', linestyle='--', alpha=0.7)
+            ax.set_xticklabels(subtopic_names, ha='right', rotation=20, fontsize=9)
+            ax.tick_params(axis='y', labelsize=9)
+            ax.set_ylim(0, max(subtopic_counts) * 1.2)  # Espaço extra para os valores acima das barras
+            ax.yaxis.set_major_locator(MultipleLocator(1))
             
-
-            plt.setp(ax.get_xticklabels(), rotation=25, ha='right')
-            
-
+            # Adicionar valores em cima das barras
             for bar in bars:
                 height = bar.get_height()
                 ax.text(bar.get_x() + bar.get_width()/2., height,
-                        f'{int(height)}',
-                        ha='center', va='bottom')
-        
-        if num_subjects < rows * cols:
-            for j in range(num_subjects, rows * cols):
-                row = j // cols
-                col = j % cols
-                axes[row, col].axis('off')
-        
-        self.fig_subtopics.tight_layout()
-        self.canvas_subtopics.draw()
-        self.fig_subtopics.subplots_adjust(top=0.95, hspace=0, wspace=0.3, bottom=0.1)
+                       f'{int(height)}',
+                       ha='center', va='bottom', fontsize=9)
+            
+            # Ajustar o layout
+            fig.tight_layout()
+            
+            # Criar canvas para o gráfico
+            canvas = FigureCanvasTkAgg(fig, subject_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
     def update_data_view(self):
         for item in self.tree.get_children():
