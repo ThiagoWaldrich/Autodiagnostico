@@ -148,11 +148,11 @@ class ENEMAnalyzer:
         
         # Container com scroll para os gráficos de subtópicos
         self.subtopics_scroll_frame = ctk.CTkScrollableFrame(frame, orientation="vertical")
-        self.subtopics_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.subtopics_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=5)
         
         # Frame para os gráficos de subtópicos dentro do scrollable frame
         self.subtopics_frame = ctk.CTkFrame(self.subtopics_scroll_frame)
-        self.subtopics_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.subtopics_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=5)
     
     def create_data_tab(self):
         frame = self.notebook.tab("Planilha")
@@ -278,7 +278,7 @@ class ENEMAnalyzer:
         for subject, topics in subject_topics.items():
             # Criar um frame separado para cada matéria
             subject_frame = ctk.CTkFrame(self.bar_frame)
-            subject_frame.pack(fill=tk.X, expand=True, padx=5, pady=15, anchor="n")
+            subject_frame.pack(fill=tk.X, expand=True, padx=10, pady=5, anchor="n")
             
             # Label para o título da matéria
             ctk.CTkLabel(subject_frame, text=f"Tópicos de {subject}", font=("Arial", 14, "bold")).pack(pady=(5, 10))
@@ -297,7 +297,7 @@ class ENEMAnalyzer:
             
             # Configurações do gráfico
             ax.grid(axis='y', linestyle='--', alpha=0.7)
-            ax.set_xticklabels(topic_names, ha='right', rotation=20, fontsize=9)
+            ax.set_xticklabels(topic_names, rotation=20, fontsize=9)
             ax.tick_params(axis='y', labelsize=9)
             ax.set_ylim(0, max(topic_counts) * 1.2)  # Espaço extra para os valores acima das barras
             ax.yaxis.set_major_locator(MultipleLocator(1))
@@ -332,14 +332,14 @@ class ENEMAnalyzer:
         if not subject_subtopics:
             # Se não houver dados, exibe uma mensagem
             no_data_label = ctk.CTkLabel(self.subtopics_frame, text="Nenhum dado disponível")
-            no_data_label.pack(expand=True, pady=20)
+            no_data_label.pack(expand=True, pady=45)
             return
         
         # Para cada matéria, criar um gráfico separado
         for subject, subtopics in subject_subtopics.items():
             # Criar um frame separado para cada matéria
             subject_frame = ctk.CTkFrame(self.subtopics_frame)
-            subject_frame.pack(fill=tk.X, expand=True, padx=5, pady=15, anchor="n")
+            subject_frame.pack(fill=tk.X, expand=True, padx=10, pady=5, anchor="n")
             
             # Label para o título da matéria
             ctk.CTkLabel(subject_frame, text=f"Subtópicos de {subject}", font=("Arial", 14, "bold")).pack(pady=(5, 10))
@@ -354,11 +354,11 @@ class ENEMAnalyzer:
             subtopic_counts = [t[1] for t in sorted_subtopics]
             
             # Criar o gráfico de barras
-            bars = ax.bar(subtopic_names, subtopic_counts, width=0.6, color='#4a6fa5')
+            bars = ax.bar(subtopic_names, subtopic_counts, width=0.5, color='#4a6fa5')
             
             # Configurações do gráfico
             ax.grid(axis='y', linestyle='--', alpha=0.7)
-            ax.set_xticklabels(subtopic_names, ha='right', rotation=20, fontsize=9)
+            ax.set_xticklabels(subtopic_names, ha='right', rotation=45, fontsize=7)
             ax.tick_params(axis='y', labelsize=9)
             ax.set_ylim(0, max(subtopic_counts) * 1.2)  # Espaço extra para os valores acima das barras
             ax.yaxis.set_major_locator(MultipleLocator(1))
@@ -394,7 +394,7 @@ class ENEMAnalyzer:
                 q["subject"],
                 q["topic"],
                 q["subtopic"],
-                q["description"][:50] + "..." if len(q["description"]) > 50 else q["description"],
+                q["description"][:120] + "..." if len(q["description"]) >120 else q["description"],
                 erro_str
             ))
     
